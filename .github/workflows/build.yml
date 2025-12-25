@@ -1,4 +1,4 @@
-name: Build Android APK (BioScanner Pro)
+name: Build Android APK (User Version Fix)
 
 on:
   workflow_dispatch:
@@ -10,41 +10,67 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      # 1. 设置 Java 17
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Accept Android Licenses
-        run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
+      # 2. 【关键修复】提前设置 Flutter 环境
+      # 您的原版脚本之所以失败，是因为 Flet 在打包时试图下载 Flutter SDK
+      # 并弹出了 "Proceed? [y/n]"，导致后台直接卡死崩溃。
+      # 加上这一步，环境就准备好了，不会再弹窗。
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
 
+      # 3. 设置 Python 3.11 (保持您原用的版本)
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      # 1. 确保环境依赖安装 (Mesa Utils 是必须的)
-      - name: Install Linux Dependencies
+      # 4. 【优化】生成 requirements.txt
+      # 1. 恢复使用 opencv-python (既然您确认它能跑通)
+      # 2. 移除了 pandas (减小体积，避免编译错误)
+      # 3. 包含了 flet 和 numpy
+      - name: Create requirements.txt
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev mesa-utils
+          echo "flet" > requirements.txt
+          echo "numpy" >> requirements.txt
+          echo "opencv-python" >> requirements.txt
+          
+          echo "--- requirements.txt content ---"
+          cat requirements.txt
 
-      # 2. 安装打包工具依赖
+      # 5. 安装依赖
+      # 先安装 requirements.txt 里的库，再装打包工具 cookiecutter
       - name: Install Dependencies
         run: |
-          pip install flet cookiecutter
+          pip install --upgrade pip
+          pip install cookiecutter
+          pip install -r requirements.txt
 
-      # 3. 开始打包
-      # 注意：这里改用了 echo "y"
+      # 6. 打包 APK
+      # Flet 会自动读取上面的 requirements.txt 进行打包
       - name: Build APK
         run: |
-          echo "y" | flet build apk --verbose --project "BioScanner" --org "com.bioscanner.app"
+          flet build apk --verbose \
+            --project "BioScanner Pro" \
+            --org "com.bioscanner.app"
 
+      # 7. 调试输出
+      - name: List Output Files
+        run: |
+          ls -R build/apk || echo "Build folder not found"
+
+      # 8. 上传 APK
       - name: Upload APK
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: BioScanner-Pro-APK
-          path: "**/*.apk"
+          name: BioScanner-Android-APK
+          path: build/apk/**/*.apk
