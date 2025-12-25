@@ -25,27 +25,22 @@ jobs:
         with:
           python-version: '3.11'
 
-      # 关键修复 1: 安装 mesa-utils 消除 doctor 警告
+      # 1. 确保环境依赖安装 (Mesa Utils 是必须的)
       - name: Install Linux Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev mesa-utils
 
-      # 关键修复 2: 强制使用 numpy<2.0.0 和 headless opencv
+      # 2. 安装打包工具依赖
       - name: Install Dependencies
         run: |
           pip install flet cookiecutter
-          pip install "numpy<2.0.0" opencv-python-headless
 
-      # 关键修复 3: 使用 yes | 自动确认
+      # 3. 开始打包
+      # 注意：这里改用了 echo "y"
       - name: Build APK
         run: |
-          yes | flet build apk --verbose --project "BioScanner" --org "com.bioscanner.app"
-
-      - name: List All Files (Debug)
-        run: |
-          echo "Listing current directory structure:"
-          ls -R
+          echo "y" | flet build apk --verbose --project "BioScanner" --org "com.bioscanner.app"
 
       - name: Upload APK
         if: success()
