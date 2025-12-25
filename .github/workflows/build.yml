@@ -33,7 +33,7 @@ jobs:
       - name: Install Dependencies
         run: |
           pip install flet cookiecutter
-          pip install numpy opencv-python
+          pip install "numpy<2.0.0" opencv-python-headless
 
       # 5. 打包 APK
       - name: Build APK
